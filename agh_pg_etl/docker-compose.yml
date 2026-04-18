@@ -1,0 +1,67 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: agh-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       agh_analytics
+      POSTGRES_USER:     agh
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-agh_secret_change_me}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    networks:
+      - agh_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agh -d agh_analytics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  etl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agh-etl
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PG_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - agh_net
+    # cron inside container (see entrypoint.sh)
+
+  metabase:
+    image: metabase/metabase:latest
+    container_name: agh-metabase
+    restart: unless-stopped
+    environment:
+      MB_DB_TYPE:   postgres
+      MB_DB_HOST:   postgres
+      MB_DB_PORT:   5432
+      MB_DB_DBNAME: metabase
+      MB_DB_USER:   agh
+      MB_DB_PASS:   ${PG_PASSWORD:-agh_secret_change_me}
+      # Limit JVM heap – important on low-RAM machines
+      JAVA_OPTS:    "-Xmx512m -Xms256m"
+    ports:
+      - "3001:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - agh_net
+    volumes:
+      - metabase_data:/metabase-data
+
+volumes:
+  pg_data:
+  metabase_data:
+
+networks:
+  agh_net:
+    driver: bridge

@@ -1,0 +1,31 @@
+# Secrets
+.env
+*.env
+
+# Claude
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log
+
+# Docker volumes (if mounted locally)
+pg_data/
+metabase_data/

@@ -1,0 +1,6 @@
+requests>=2.32
+psycopg[binary]>=3.2
+python-dotenv>=1.0
+tldextract>=5.1
+pydantic>=2.7
+tenacity>=9.0
