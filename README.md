@@ -323,11 +323,20 @@ docker logs agh-etl --tail 20   # 查看 ETL 同步紀錄
 
 所有儀表板都支援 **日期範圍**、**設備 IP**、**Domain** 篩選器。
 
-| 儀表板 | 內容 |
-|--------|------|
-| 🌐 全局總覽 | 今日 KPI（總查詢/封鎖/快取）、每小時趨勢、封鎖率、DNS 延遲 |
-| 📱 設備分析 | 各設備查詢量/封鎖量排行、設備查詢趨勢、單設備 Top Domain |
-| 🔍 Domain 分析 | Top 查詢/封鎖域名、深夜高頻域名、域名被哪些設備查詢 |
+### 🌐 全局總覽
+今日 KPI（總查詢/封鎖/快取）、每小時趨勢、封鎖率、DNS 延遲。
+
+![Dashboard 1](docs/dash1_overview.jpg)
+
+### 📱 設備分析
+各設備查詢量/封鎖量排行、設備查詢趨勢、單設備 Top Domain。
+
+![Dashboard 2](docs/dash2_devices.jpg)
+
+### 🔍 Domain 分析
+Top 查詢/封鎖域名、深夜高頻域名、域名被哪些設備查詢。
+
+![Dashboard 3](docs/dash3_domains.jpg)
 
 ---
 
