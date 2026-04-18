@@ -1,5 +1,7 @@
 # AGH Analytics
 
+**English** | [中文](#中文說明)
+
 Turn your [AdGuard Home](https://adguard.com/adguard-home.html) DNS logs into a real-time analytics dashboard — automatically.
 
 ```
@@ -74,37 +76,6 @@ AdGuard Home's built-in UI only shows the last few hundred log entries with no t
 
 ---
 
-## Database Schema
-
-### Raw table: `dns_queries`
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `event_time` | timestamptz | Query timestamp (UTC) |
-| `client_key` | text | Device ID: `agh:<id>` / `name:<n>` / `ip:<ip>` |
-| `client_name` | text | Device name from AGH (nullable) |
-| `client_ip` | inet | Device IP |
-| `root_domain` | text | Root domain, e.g. `google.com` |
-| `qname` | text | Full query name |
-| `qtype` | text | Query type: `A`, `AAAA`, `PTR`, `HTTPS`… |
-| `response_status` | text | `allowed` / `blocked` / `cached` / `rewrite` |
-| `elapsed_ms` | numeric | Query latency in ms |
-| `event_fingerprint` | text | SHA-256 dedup key (unique) |
-
-### Aggregate tables
-
-- `agg_overview` — global stats per bucket
-- `agg_client_usage` — per-device stats
-- `agg_client_domain_usage` — device × domain cross
-- `agg_domain_usage` — per-domain stats
-- `agg_domain_client_usage` — domain × device cross
-
-All aggregate tables have `bucket_size = '1h'` (last 3 days) or `'1d'` (last 14 days).
-
-Full schema: see [`metabase_dashboard_brief.md`](metabase_dashboard_brief.md)
-
----
-
 ## Requirements
 
 - Docker + Docker Compose
@@ -148,15 +119,13 @@ On first start:
 ### 3. Configure Metabase
 
 1. Open `http://YOUR_HOST:3001` and complete the setup wizard
-2. Add a PostgreSQL database:
-   - Host: `YOUR_HOST` (use server IP, not `postgres` — Metabase connects from its own perspective)
-   - Port: `5432`
-   - Database: `agh_analytics`
-   - Username: `agh`
+2. Add a PostgreSQL database connection:
+   - Host: your server IP (not `postgres` — Metabase connects externally)
+   - Port: `5432` / Database: `agh_analytics` / User: `agh`
    - Password: value of `PG_PASSWORD` in your `.env`
-3. Create native SQL questions using the queries in `metabase_dashboard_brief.md`
+3. Create native SQL questions using the schema in [`metabase_dashboard_brief.md`](metabase_dashboard_brief.md)
 
-### 4. Verify it's running
+### 4. Verify
 
 ```bash
 docker compose ps               # all 3 services should be Up
@@ -165,15 +134,44 @@ docker logs agh-etl --tail 20   # check ETL ingest logs
 
 ---
 
+## Database Schema
+
+### Raw table: `dns_queries`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `event_time` | timestamptz | Query timestamp (UTC) |
+| `client_key` | text | Device ID: `agh:<id>` / `name:<n>` / `ip:<ip>` |
+| `client_name` | text | Device name from AGH (nullable) |
+| `client_ip` | inet | Device IP |
+| `root_domain` | text | Root domain, e.g. `google.com` |
+| `qtype` | text | Query type: `A`, `AAAA`, `PTR`… |
+| `response_status` | text | `allowed` / `blocked` / `cached` / `rewrite` |
+| `elapsed_ms` | numeric | Query latency in ms |
+| `event_fingerprint` | text | SHA-256 dedup key (unique) |
+
+### Aggregate tables
+
+| Table | Description |
+|-------|-------------|
+| `agg_overview` | Global stats per time bucket |
+| `agg_client_usage` | Per-device stats |
+| `agg_client_domain_usage` | Device × domain cross |
+| `agg_domain_usage` | Per-domain stats |
+| `agg_domain_client_usage` | Domain × device cross |
+
+All have `bucket_size = '1h'` (last 3 days) or `'1d'` (last 14 days).
+Full schema → [`metabase_dashboard_brief.md`](metabase_dashboard_brief.md)
+
+---
+
 ## Data Retention
 
 | Data | Retention |
 |------|-----------|
 | `dns_queries` raw | 14 days |
-| `agg_*` 1h buckets | 3 days |
-| `agg_*` 1d buckets | 14 days |
-
-Retention cleanup runs automatically after each hourly aggregate rebuild.
+| Aggregate 1h buckets | 3 days |
+| Aggregate 1d buckets | 14 days |
 
 ---
 
@@ -182,28 +180,154 @@ Retention cleanup runs automatically after each hourly aggregate rebuild.
 ```
 agh_pg_etl/
 ├── app/
-│   ├── main.py          # CLI entrypoint (ingest / backfill / aggregate / init-db)
-│   ├── agh_client.py    # AGH HTTP API client (cursor pagination)
-│   ├── transform.py     # AGH JSON → normalised DnsQueryRow (pydantic)
-│   ├── loader.py        # PostgreSQL insert + ETL state management
-│   └── aggregator.py    # Aggregate rebuild + retention cleanup
+│   ├── main.py           # CLI: ingest / backfill / aggregate / init-db
+│   ├── agh_client.py     # AGH HTTP API client (cursor pagination)
+│   ├── transform.py      # AGH JSON → DnsQueryRow (pydantic)
+│   ├── loader.py         # PostgreSQL insert + ETL state
+│   └── aggregator.py     # Aggregate rebuild + retention cleanup
 ├── sql/
-│   ├── 001_init.sql     # Core tables (dns_queries, etl_state)
-│   ├── 002_indexes.sql  # Performance indexes
-│   └── 003_aggregates.sql  # Aggregate table definitions
-├── tests/
-│   └── test_transform.py
+│   ├── 001_init.sql      # Core tables
+│   ├── 002_indexes.sql   # Performance indexes
+│   └── 003_aggregates.sql
 ├── Dockerfile
 ├── docker-compose.yml
-├── entrypoint.sh        # Init DB → backfill → start cron
-├── requirements.txt
+├── entrypoint.sh
 └── .env.example
-docs/
-├── dash1_overview.jpg
-├── dash2_devices.jpg
-└── dash3_domains.jpg
-metabase_dashboard_brief.md   # Full schema + Metabase query reference
+docs/                     # Dashboard screenshots
+metabase_dashboard_brief.md
 ```
+
+---
+
+## License
+
+MIT
+
+---
+---
+
+# 中文說明
+
+[English](#agh-analytics) | **中文**
+
+將 [AdGuard Home](https://adguard.com/adguard-home.html) 的 DNS 查詢紀錄，自動化轉化為即時分析儀表板。
+
+```
+AdGuard Home  →  Python ETL  →  PostgreSQL  →  Metabase
+  (DNS 紀錄)     (每 5 分鐘)     (保留 14 天)    (3 個儀表板)
+```
+
+## 為什麼做這個？
+
+AdGuard Home 內建 UI 只能看最近幾百筆紀錄，沒有趨勢分析、沒有跨裝置比較。這個專案幫你回答：
+
+- 哪台設備查詢 DNS 最頻繁？
+- 哪些域名最常被封鎖？被哪些設備觸發？
+- 深夜有沒有可疑流量？
+- 封鎖率的趨勢怎麼走？
+
+---
+
+## 系統架構
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  Docker Compose                      │
+│                                                     │
+│  ┌──────────┐   ┌──────────────┐   ┌─────────────┐ │
+│  │PostgreSQL│   │  ETL (Python)│   │  Metabase   │ │
+│  │          │←──│              │   │  port 3001  │ │
+│  │ port 5432│   │ cron 5 分鐘  │   │             │ │
+│  └──────────┘   └──────────────┘   └─────────────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+**ETL 流程：**
+1. 每 5 分鐘 poll AGH `/control/querylog`（cursor 分頁，自動 dedup）
+2. 正規化資料：用 tldextract 提取 `root_domain`、將 AGH reason 對應到 `response_status`、計算 SHA-256 fingerprint
+3. 寫入 `dns_queries` raw 表（`ON CONFLICT DO NOTHING`）
+4. 每小時重建 5 張 aggregate 表（1h / 1d bucket），讓 Dashboard 查詢秒回應
+
+**設計決策：**
+
+| 選擇 | 原因 |
+|------|------|
+| Python ETL | AGH API 需要 cursor 分頁和欄位正規化邏輯 |
+| PostgreSQL | 支援 `inet` 型別、window function、與 Metabase 相容性好 |
+| Aggregate 表 | raw 表累積到 10 萬筆以上；預計算讓儀表板保持快速 |
+| Docker Compose | 一個指令部署全套，重開機自動恢復 |
+| Metabase Native SQL | 比 GUI builder 靈活，支援 template tag filter |
+
+---
+
+## 安裝步驟
+
+### 1. Clone 並設定
+
+```bash
+git clone https://github.com/Johnny-Kao/agh-analytics.git
+cd agh-analytics/agh_pg_etl
+cp .env.example .env
+```
+
+編輯 `.env`，填入你的 AGH 位址、帳密和 DB 密碼：
+
+```env
+AGH_BASE_URL=http://你的AGH主機/control
+AGH_USERNAME=你的帳號
+AGH_PASSWORD=你的密碼
+
+PG_PASSWORD=設定一個強密碼
+```
+
+### 2. 啟動服務
+
+```bash
+docker compose up -d
+```
+
+首次啟動會自動：
+- 建立 PostgreSQL schema
+- Backfill 過去 7 天的 AGH query log
+- 在 port 3001 提供 Metabase
+
+### 3. 設定 Metabase
+
+1. 開啟 `http://你的主機IP:3001`，完成設定精靈
+2. 新增 PostgreSQL 資料庫連線：
+   - Host：填伺服器 IP（不是 `postgres`，Metabase 從自身視角連線）
+   - Port：`5432` / Database：`agh_analytics` / User：`agh`
+   - Password：`.env` 裡的 `PG_PASSWORD`
+3. 用 [`metabase_dashboard_brief.md`](metabase_dashboard_brief.md) 裡的 SQL 建立 Question 和 Dashboard
+
+### 4. 確認運行狀態
+
+```bash
+docker compose ps               # 3 個服務都應顯示 Up
+docker logs agh-etl --tail 20   # 查看 ETL 同步紀錄
+```
+
+---
+
+## 資料保留
+
+| 資料 | 保留期限 |
+|------|---------|
+| `dns_queries` raw 表 | 14 天 |
+| Aggregate 1h bucket | 3 天 |
+| Aggregate 1d bucket | 14 天 |
+
+---
+
+## 儀表板功能
+
+所有儀表板都支援 **日期範圍**、**設備 IP**、**Domain** 篩選器。
+
+| 儀表板 | 內容 |
+|--------|------|
+| 🌐 全局總覽 | 今日 KPI（總查詢/封鎖/快取）、每小時趨勢、封鎖率、DNS 延遲 |
+| 📱 設備分析 | 各設備查詢量/封鎖量排行、設備查詢趨勢、單設備 Top Domain |
+| 🔍 Domain 分析 | Top 查詢/封鎖域名、深夜高頻域名、域名被哪些設備查詢 |
 
 ---
 
